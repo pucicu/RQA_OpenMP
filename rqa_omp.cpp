@@ -361,16 +361,9 @@ int main(int argc, char *argv[]) {
     double elapsed_time;
     double elapsed_time_temp; // for each process separately
     
-    // indices
-    //long k;
-    //long i; 
-    //long j;
-    
-    
     // helper variables for RQA
     long numberL = 0; // total number of diagonal lines
     long numberV = 0; // total number of vertical lines
-    //long line;
     long countL = 0; 
     long countV = 0; 
     float d, distance2;
@@ -583,7 +576,7 @@ int main(int argc, char *argv[]) {
        #endif
 
 
-       // Thread-lokale Histogramme
+       // thread-locale histogrammes
        long* local_histl = new long[N+1]();
        long* local_histv = new long[N+1]();
        long local_RR = 0;
@@ -591,6 +584,7 @@ int main(int argc, char *argv[]) {
        long line;
        long oldDistance;
 
+       // select distance funvtion
        typedef float (*DistFunc)(const float*, long, long, long, long, long, float, long);
        DistFunc distfunc = nullptr;
 
@@ -666,7 +660,7 @@ int main(int argc, char *argv[]) {
             /****************************************************************/
         }
         
-            // Kombiniere Ergebnisse am Ende (weniger Locks)
+        // combine results from threads
         #pragma omp critical
         {
             for(long i = 0; i <= N; i++) {
@@ -688,159 +682,154 @@ int main(int argc, char *argv[]) {
     /****************************************************************/
     
     
-        
-//         for(i=0; i<p; i++) {
-//             std::cout << "\n LMAX: " << Lmax[i].l << " " << Lmax[i].pos << "\n";
-//         }
-        
-        // recurrence rate
-        trueRR = double(RR)/double(cnt);
-        
-        
-        // count number of rec. points on diagonal lines
-        // count the total number of diagonal lines
-        // determine the longest diagonal line
-        countL = 0; numberL = 0;
-        for( long i = lmin; i <= N-tw; i++) { 
-            countL += histl[i] * (i);
-            numberL += histl[i];
-            if(histl[i]) LMAX = i;
-        }
-        
-        // count number of rec. points on vertical lines
-        // count the total number of vertical lines
-        // determine the longest vertical line
-        for( long i = vmin; i <= N; i++) { 
-            countV += histv[i] * (i);
-            numberV += histv[i];
-            if(histv[i]) VMAX = i;
-        }
-        
-        // count all recurrence points for LAM
-        for( long i = 1; i <= VMAX; i++) vRR += histv[i] * i;
-        
-        // calculate probability
-        double prob[N+1];  // prob. of a diagonal line with exact length L
-        for( long i = 1; i <= LMAX; i++) { 
-            prob[i] = double(histl[i])/double(numberL);
-        }
-        
-        // calculate L entropy
-        for( long i = lmin; i <= LMAX; i++) { 
-            if(prob[i] > 0) ENT -= prob[i] * log(prob[i]);
-        }
-        
-        // calculate probability
-        for( long i = 1; i <= VMAX; i++) { 
-            prob[i] = double(histv[i])/double(numberV);
-        }
-        
-        // calculate V entropy
-        for( long i = vmin; i <= VMAX; i++) { 
-            if(prob[i] > 0) VENT -= prob[i] * log(prob[i]);
-        }
-        
-        // calculate determinism and mean diagonal line length
-        DET = double(countL) / double(RR);
-        L = double(countL) / double(numberL);
-        // calculate laminarity and trapping time
-        LAM = double(countV) / double(vRR);
-        TT = double(countV) / double(numberV);
-        if(LMAX > 0) DIV = 1/double(LMAX); else DIV = 0;
+    // recurrence rate
+    trueRR = double(RR)/double(cnt);
 
 
+    // count number of rec. points on diagonal lines
+    // count the total number of diagonal lines
+    // determine the longest diagonal line
+    countL = 0; numberL = 0;
+    for( long i = lmin; i <= N-tw; i++) { 
+        countL += histl[i] * (i);
+        numberL += histl[i];
+        if(histl[i]) LMAX = i;
+    }
+
+    // count number of rec. points on vertical lines
+    // count the total number of vertical lines
+    // determine the longest vertical line
+    for( long i = vmin; i <= N; i++) { 
+        countV += histv[i] * (i);
+        numberV += histv[i];
+        if(histv[i]) VMAX = i;
+    }
+
+    // count all recurrence points for LAM
+    for( long i = 1; i <= VMAX; i++) vRR += histv[i] * i;
+
+    // calculate probability
+    double prob[N+1];  // prob. of a diagonal line with exact length L
+    for( long i = 1; i <= LMAX; i++) { 
+        prob[i] = double(histl[i])/double(numberL);
+    }
+
+    // calculate L entropy
+    for( long i = lmin; i <= LMAX; i++) { 
+        if(prob[i] > 0) ENT -= prob[i] * log(prob[i]);
+    }
+
+    // calculate probability
+    for( long i = 1; i <= VMAX; i++) { 
+        prob[i] = double(histv[i])/double(numberV);
+    }
+
+    // calculate V entropy
+    for( long i = vmin; i <= VMAX; i++) { 
+        if(prob[i] > 0) VENT -= prob[i] * log(prob[i]);
+    }
+
+    // calculate determinism and mean diagonal line length
+    DET = double(countL) / double(RR);
+    L = double(countL) / double(numberL);
+    // calculate laminarity and trapping time
+    LAM = double(countV) / double(vRR);
+    TT = double(countV) / double(numberV);
+    if(LMAX > 0) DIV = 1/double(LMAX); else DIV = 0;
+
+
+    /****************************************************************/
+    // output results into a file or on screen
+
+    if(!silent) { 
         /****************************************************************/
-        // output results into a file or on screen
+        t2 = time(NULL) - t1 ;
+        systime = localtime(&t2);
+        std::cout.precision(6);
+        std::cout << "\nComputation time: ";
+        if( (systime->tm_mday - 1) ) std::cout << systime->tm_mday - 1 <<" day ";
+        if( (systime->tm_hour - 1) > 0 ) std::cout << systime->tm_hour - 1 <<" h ";
+        std::cout << systime->tm_min <<" min "<< systime->tm_sec<< " sec\n" << std::endl;
+    }
 
-        if(!silent) { 
-            /****************************************************************/
-            t2 = time(NULL) - t1 ;
-            systime = localtime(&t2);
-            std::cout.precision(6);
-            std::cout << "\nComputation time: ";
-            if( (systime->tm_mday - 1) ) std::cout << systime->tm_mday - 1 <<" day ";
-            if( (systime->tm_hour - 1) > 0 ) std::cout << systime->tm_hour - 1 <<" h ";
-            std::cout << systime->tm_min <<" min "<< systime->tm_sec<< " sec\n" << std::endl;
+    if( fileout ) {
+    #ifdef __PCWIN__
+            if(!silent) std::cout << "Write RQA results to file: " << rqaFilename ;
+    #else
+            if(!silent) std::cout << "Write RQA results to file: \033[1m" << rqaFilename << "\033[0m" ;
+    #endif
+        fid << trueRR << delimiter << DET << delimiter << LMAX << delimiter;
+        fid << L << delimiter << ENT << delimiter << LAM << delimiter << TT << delimiter << VMAX;
+        fid << std::endl;
+    } else {
+        if(!silent) {
+            std::cout.precision(4);
+            std::cout.width(6);
+            std::cout << "Recurrence quantification analysis:\n";
+            std::cout << "      RR:     " << trueRR << "\n";
+            std::cout << "      DET:    " << DET;
+            std::cout << "       \tLAM:     " <<LAM << "\n";
+            if(RR > 0) 
+            std::cout << "      DET/RR: " << DET/trueRR; 
+            else 
+            std::cout << "      DET/RR: " << "NaN";
+            if(DET > 0) 
+            std::cout << "      \tLAM/DET: " << LAM/DET;
+            else 
+            std::cout << "      \tLAM/DET: NaN";
+            std::cout << "\n";
+            std::cout << "      L_max:  " << LMAX;
+            std::cout << "           \tV_max:   " << VMAX;
+            std::cout << "\n";
+            std::cout << "      L_mean: " << L;
+            std::cout << "        \tTT:      " << TT;
+            std::cout << "\n";
+            std::cout << "      L_entr: " << ENT;
+            std::cout << "        \tV_entr:  " << VENT;
+            std::cout << "\n";
+            if(DIV > 0) 
+            std::cout << "      DIV:    " << DIV; 
+            else 
+            std::cout << "      DIV:    " << "NaN";
+            std::cout << std::endl;
+
         }
+    }
 
-        if( fileout ) {
-        #ifdef __PCWIN__
-                if(!silent) std::cout << "Write RQA results to file: " << rqaFilename ;
-        #else
-                if(!silent) std::cout << "Write RQA results to file: \033[1m" << rqaFilename << "\033[0m" ;
-        #endif
-            fid << trueRR << delimiter << DET << delimiter << LMAX << delimiter;
-            fid << L << delimiter << ENT << delimiter << LAM << delimiter << TT << delimiter << VMAX;
-            fid << std::endl;
+
+    if(!silent) { std::cout << std::endl; }
+
+    // close results file
+    if( fileout ) {
+        fid.close();
+    }    
+
+
+    // store the histogramme of the diagonal line lengths
+    if( strcmp(histFilenameL, "none") ) {
+        std::ofstream fid(histFilenameL);
+        if( ! fid ) { 
+            std::cerr << "ERROR: could not open " << histFilenameL << std::endl;
         } else {
-            if(!silent) {
-                std::cout.precision(4);
-                std::cout.width(6);
-                std::cout << "Recurrence quantification analysis:\n";
-                std::cout << "      RR:     " << trueRR << "\n";
-                std::cout << "      DET:    " << DET;
-                std::cout << "       \tLAM:     " <<LAM << "\n";
-                if(RR > 0) 
-                std::cout << "      DET/RR: " << DET/trueRR; 
-                else 
-                std::cout << "      DET/RR: " << "NaN";
-                if(DET > 0) 
-                std::cout << "      \tLAM/DET: " << LAM/DET;
-                else 
-                std::cout << "      \tLAM/DET: NaN";
-                std::cout << "\n";
-                std::cout << "      L_max:  " << LMAX;
-                std::cout << "           \tV_max:   " << VMAX;
-                std::cout << "\n";
-                std::cout << "      L_mean: " << L;
-                std::cout << "        \tTT:      " << TT;
-                std::cout << "\n";
-                std::cout << "      L_entr: " << ENT;
-                std::cout << "        \tV_entr:  " << VENT;
-                std::cout << "\n";
-                if(DIV > 0) 
-                std::cout << "      DIV:    " << DIV; 
-                else 
-                std::cout << "      DIV:    " << "NaN";
-                std::cout << std::endl;
-                
+            for( long i = 1; i <= N-tw; i++) { 
+                fid << i << ' ' << histl[i] << '\n';
             }
         }
-    
-    
-        if(!silent) { std::cout << std::endl; }
-        
-        // close results file
-        if( fileout ) {
             fid.close();
-        }    
-        
-        
-        // store the histogramme of the diagonal line lengths
-        if( strcmp(histFilenameL, "none") ) {
-            std::ofstream fid(histFilenameL);
-            if( ! fid ) { 
-                std::cerr << "ERROR: could not open " << histFilenameL << std::endl;
-            } else {
-                for( long i = 1; i <= N-tw; i++) { 
-                    fid << i << ' ' << histl[i] << '\n';
-                }
-            }
-                fid.close();
-        }
+    }
 
-        // store the histogramme of the vertical line lengths
-        if( strcmp(histFilenameV, "none") ) {
-            std::ofstream fid(histFilenameV);
-            if( ! fid ) { 
-                std::cerr << "ERROR: could not open " << histFilenameV << std::endl;
-            } else {
-                for( long i = 1; i <= N; i++) { 
-                    fid << i << ' ' << histv[i] << '\n';
-                }
-                fid.close();
+    // store the histogramme of the vertical line lengths
+    if( strcmp(histFilenameV, "none") ) {
+        std::ofstream fid(histFilenameV);
+        if( ! fid ) { 
+            std::cerr << "ERROR: could not open " << histFilenameV << std::endl;
+        } else {
+            for( long i = 1; i <= N; i++) { 
+                fid << i << ' ' << histv[i] << '\n';
             }
+            fid.close();
         }
+    }
 
     
     return 1;
