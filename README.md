@@ -26,8 +26,8 @@ the Lorenz system
 Compilation
 -----------
 
-- Compile without multithread support:  `g++ -O3 -o rqa_omp rqa_omp.cpp`
-- Compile for multithread support:  `g++ -O3 -fopenmp -o rqa_omp rqa_omp.cpp`
+- Compile without multithread support:  `g++ -O3 -o rqa_omp rqa_omp_n.cpp`
+- Compile for multithread support:  `g++ -O3 -fopenmp -o rqa_omp rqa_omp_n.cpp`
 
 Usage
 -----
@@ -108,5 +108,6 @@ Copyright
 Norbert Marwan\
 Potsdam Institute for Climate Impact Research\
 4/2009
+11/2025
 
 License: GPLv3

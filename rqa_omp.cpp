@@ -1,10 +1,14 @@
 /*************************************************************************/
 /* RQA for very long data series                                         */
-/* Norbert Marwan, Potsdam Institute for Climate Impact Research, 4/2009 */
+/* Norbert Marwan                                                        */
+/* Potsdam Institute for Climate Impact Research                         */
+/* Original version: 4/2009                                              */
+/* Updated version: 11/2025                                              */
 /* License: GPLv3                                                        */
 /*************************************************************************/
 
-// compile for multithread with:  g++ -o rqa_omp rqa_omp.cpp -O3 -fopenmp
+// compile for multithread with: g++ -O3 -fopenmp -o rqa_omp rqa_omp_n.cpp
+// compile on macos for multithread with: /opt/local/bin/clang++-mp-18 -O3 -march=native -fopenmp -funroll-loops -ffast-math -o rqa_omp rqa_omp.cpp
 
 
 #include <cstdlib>
@@ -20,6 +24,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <omp.h>
+#define FORCE_INLINE inline __attribute__((always_inline))
 
 //#define __VERBOSE__ // uncomment this line to get a more verbose output
     
@@ -28,9 +33,8 @@ enum rptype { RP, CRP, JRP };
 norm normType = EUCLIDEAN;
 rptype rpType = RP;
 
-
 /***********************************************************************************
- *  distance()  -  computes the Euclidean distance between 
+ *  distance_euclidean()  -  computes the Euclidean distance between 
  *                 phase space vectors X and Y which will be
  *                 reconstructed from a time-series by the
  *                 time delay method
@@ -40,58 +44,139 @@ rptype rpType = RP;
  *         output: the Euclidean distance between the reconstructed
  *                 vectors X and Y.
  */
-inline float dist(
-    const std::vector<float>& data, 
+
+FORCE_INLINE float distance_euclidean(
+    const float* __restrict data,
     long i, 
     long j, 
-    norm normType, 
     long m, 
     long t, 
-    long cols
+    long cols,
+    float e,
+    long N
 ) {
-        float d=0;
-        float dNew;
-        long k, k2;
-        
-        switch(normType) {
-            case EUCLIDEAN:
-                for ( k = 0; k < m; k++) {
-                    for ( k2 = 0; k2 < cols; k2++) {
-                        long idx_x = cols * (i + k * t) + k2;
-                        long idx_y = cols * (j + k * t) + k2;
-                        float diff = data[idx_x] - data[idx_y];
-                        d += diff * diff;
-                    }
-                }
-                d = sqrt(d);
-                break;
-            case MAX:
-                d = 0;
-                for ( k = 0; k < m; k++) {
-                    for ( k2 = 0; k2 < cols; k2++) {
-                        long idx_x = cols * (i + k * t) + k2;
-                        long idx_y = cols * (j + k * t) + k2;
-                        dNew = fabs(data[idx_x] - data[idx_y]);
-                        if( dNew > d ) d = dNew;
-                    }
-                }
-                break;
-            case MIN:
-                for ( k = 0; k < m; k++) {
-                    for ( k2 = 0; k2 < cols; k2++) {
-                        long idx_x = cols * (i + k * t) + k2;
-                        long idx_y = cols * (j + k * t) + k2;
-                        d += fabs(data[idx_x] - data[idx_y]);
-                    }
-                }
-                break;
-            case OP:
-                d = fabs(data[i] - data[j]);
-                break;
+    float d=0;
+    float dNew;
+    long k, k2;
+
+    for ( k = 0; k < m; k++) {
+        long idx_x = cols * (i + k * t);
+        long idx_y = cols * (j + k * t);
+        for ( k2 = 0; k2 < cols && d < e; k2++) {
+            float diff = data[idx_x + k2] - data[idx_y + k2];
+            d += diff * diff;
         }
-        
-        return d;
     }
+    d = sqrtf(d);
+
+    return d;
+}
+
+/***********************************************************************************
+ *  distance_maximum()  -  computes the maximum distance between 
+ *                 phase space vectors X and Y which will be
+ *                 reconstructed from a time-series by the
+ *                 time delay method
+ * 
+ *         input:  pointer to the data vector U and pointer to 
+ *                 the data vector V
+ *         output: the maximum distance between the reconstructed
+ *                 vectors X and Y.
+ */
+
+FORCE_INLINE float distance_maximum(
+    const float* __restrict data,
+    long i, 
+    long j, 
+    long m, 
+    long t, 
+    long cols,
+    float e,
+    long N
+) {
+    float d = 0;
+    float dNew;
+    long k, k2;
+    
+    for ( k = 0; k < m; k++) {
+        long idx_x = cols * (i + k * t);
+        long idx_y = cols * (j + k * t);
+        for ( k2 = 0; k2 < cols; k2++) {
+            dNew = fabs(data[idx_x + k2] - data[idx_y] + k2);
+            if( dNew > d ) d = dNew;
+            //d = (dNew > d) ? dNew : d;
+            if(d >= e) break;
+        }
+    }
+
+    return d;
+}
+
+/***********************************************************************************
+ *  distance_minimum()  -  computes the minimum distance between 
+ *                 phase space vectors X and Y which will be
+ *                 reconstructed from a time-series by the
+ *                 time delay method
+ * 
+ *         input:  pointer to the data vector U and pointer to 
+ *                 the data vector V
+ *         output: the minimum distance between the reconstructed
+ *                 vectors X and Y.
+ */
+
+FORCE_INLINE float distance_minimum(
+    const float* __restrict data,
+    long i, 
+    long j, 
+    long m, 
+    long t, 
+    long cols,
+    float e,
+    long N
+) {
+    float d = 0;
+    float dNew;
+    long k, k2;
+    
+    for ( k = 0; k < m; k++) {
+        long idx_x = cols * (i + k * t);
+        long idx_y = cols * (j + k * t);
+        for ( k2 = 0; k2 < cols; k2++) {
+            d += fabs(data[idx_x + k2] - data[idx_y] + k2);
+            if(d >= e) break;
+        }
+    }
+
+    return d;
+}
+
+/***********************************************************************************
+ *  distance_op()  -  computes the distance between 
+ *                 order pattern in X and Y
+ * 
+ *         input:  pointer to the data vector U and pointer to 
+ *                 the data vector V
+ *         output: the distance between the order pattern
+ *                 vectors X and Y.
+ */
+
+FORCE_INLINE float distance_op(
+    const float* __restrict data,
+    long i, 
+    long j, 
+    long m, 
+    long t, 
+    long cols,
+    float e,
+    long N
+) {
+    float d = 0;
+    
+    d = fabs(data[i] - data[j]);
+
+    return d;
+}
+
 
 /***********************************************************************************
  *  swap  -  swap two elements in a vector
@@ -277,18 +362,18 @@ int main(int argc, char *argv[]) {
     double elapsed_time_temp; // for each process separately
     
     // indices
-    long k;
-    long i; 
-    long j;
+    //long k;
+    //long i; 
+    //long j;
     
     
     // helper variables for RQA
     long numberL = 0; // total number of diagonal lines
     long numberV = 0; // total number of vertical lines
-    long line;
+    //long line;
     long countL = 0; 
     long countV = 0; 
-    double distance, d, oldDistance, distance2;
+    float d, distance2;
     long N;
     long cnt;
     long vRR = 0;
@@ -394,7 +479,7 @@ int main(int argc, char *argv[]) {
             cols = col_count;
             first_line = false;
         } else if (col_count != cols) {
-            std::cerr << "ERROR: Inconsistent column count in file at line: " << line << std::endl;
+            std::cerr << "ERROR: Inconsistent column count in file at line: " << fline << std::endl;
             return 99;
         }
     }
@@ -490,78 +575,111 @@ int main(int argc, char *argv[]) {
     LMAX = 0; 
     #pragma omp parallel if(N*m > 2000) 
     {
-      #ifdef __VERBOSE__
+       #ifdef __VERBOSE__
         #ifdef _OPENMP
         if(omp_get_thread_num() == 0)
            std::cout <<  "                 Calculation is using \033[1m" << omp_get_num_threads() << "\033[0m processes." << std::endl;
         #endif
-      #endif
-    #pragma omp for private(i,j,k,d,distance,line,oldDistance) schedule(guided) reduction(+:cnt,RR)
-       for( i = i_start; i < i_end; i++) {
+       #endif
+
+
+       // Thread-lokale Histogramme
+       long* local_histl = new long[N+1]();
+       long* local_histv = new long[N+1]();
+       long local_RR = 0;
+       long local_cnt = 0;
+       long line;
+       long oldDistance;
+
+       typedef float (*DistFunc)(const float*, long, long, long, long, long, float, long);
+       DistFunc distfunc = nullptr;
+
+       switch(normType) {
+           case EUCLIDEAN: distfunc = distance_euclidean; break;
+           case MAX:       distfunc = distance_maximum; break;
+           case MIN:       distfunc = distance_minimum; break;
+           case OP:        distfunc = distance_op; break;
+       }
+
+       #pragma omp for schedule(guided, 16) nowait
+       for( long i = i_start; i < i_end; i++) {
            
            
             /****************************************************************/
             // diagonal-wise loop
             oldDistance = 0; line = 0; 
+            long newN = N-i;
             // test for Theiler window
             if(i >= tw) {
-                for( j = 0; j < N-i; j++) {
+                for( long j = 0; j < newN; j++) {
 
-                    cnt++;
+                    local_cnt++;
 
                     // calculate distance
-                    distance = dist(data, i+j, j, normType, m, t, cols);
+                    float distance;
+                    distance = distfunc(data.data(), i+j, j, m, t, cols, e, N);
                     distance2 = distance;
 
                     // apply threshold
-                    if (distance <= e) distance = 1.; else distance = 0.;
+                    if (distance <= e) {
+                        distance = 1.; 
+                        local_RR++; // count all recurrences
+                    } else { 
+                        distance = 0.;
+                    }
 
-                    if(distance) 
-//std::cout << "distance: " << distance2 << "\n";
-//std::cout << "RP: " << distance << "\n";
-//std::cout << "e: " << e << "\n";
-                        RR++; // count all recurrences
                     if(oldDistance) line++; // count diagonal length of diagonal lines
                     else {
                         if(line) { 
-                            #pragma omp atomic
-                            histl[line]++; // make histogram of diagonal lines
+                            local_histl[line]++; // make histogram of diagonal lines
                         }
                         line = 0;
                     }
                     oldDistance = distance;
                 }
                 if(line) 
-                    #pragma omp atomic
-                    histl[line]++; // make histogram of diagonal lines
+                    local_histl[line]++; // make histogram of diagonal lines
             }
             /****************************************************************/
             // vertical-wise loop
             oldDistance = 0; line = 0; 
-            for( j = 0; j < N; j++) {
+            for( long j = 0; j < N-1; j++) {
                 
                 // calculate distance
-                distance = dist(data, i, j, normType, m, t, cols);
+                float distance;
+                distance = distfunc(data.data(), i, j, m, t, cols, e, N);
         
-
                 // apply threshold
                 if (distance <= e) distance = 1.; else distance = 0.;
 
                 if(oldDistance) line++; // count vertical length of vertical lines
                 else {
                     if(line) { 
-                        #pragma omp atomic
-                        histv[line]++; // make histogram of vertical lines
+                        local_histv[line]++; // make histogram of vertical lines
                     }
                     line = 0;
                 }
                 oldDistance = distance;
             }
             if(line) 
-                #pragma omp atomic
-                histv[line]++; // make histogram of vertical lines
+                local_histv[line]++; // make histogram of vertical lines
             /****************************************************************/
         }
+        
+            // Kombiniere Ergebnisse am Ende (weniger Locks)
+        #pragma omp critical
+        {
+            for(long i = 0; i <= N; i++) {
+                histl[i] += local_histl[i];
+                histv[i] += local_histv[i];
+            }
+            RR += local_RR;
+            cnt += local_cnt;
+        }
+
+        delete[] local_histl;
+        delete[] local_histv;
+
     }
     
  
@@ -583,7 +701,7 @@ int main(int argc, char *argv[]) {
         // count the total number of diagonal lines
         // determine the longest diagonal line
         countL = 0; numberL = 0;
-        for( i = lmin; i <= N-tw; i++) { 
+        for( long i = lmin; i <= N-tw; i++) { 
             countL += histl[i] * (i);
             numberL += histl[i];
             if(histl[i]) LMAX = i;
@@ -592,33 +710,33 @@ int main(int argc, char *argv[]) {
         // count number of rec. points on vertical lines
         // count the total number of vertical lines
         // determine the longest vertical line
-        for( i = vmin; i <= N; i++) { 
+        for( long i = vmin; i <= N; i++) { 
             countV += histv[i] * (i);
             numberV += histv[i];
             if(histv[i]) VMAX = i;
         }
         
         // count all recurrence points for LAM
-        for( i = 1; i <= VMAX; i++) vRR += histv[i] * i;
+        for( long i = 1; i <= VMAX; i++) vRR += histv[i] * i;
         
         // calculate probability
         double prob[N+1];  // prob. of a diagonal line with exact length L
-        for( i = 1; i <= LMAX; i++) { 
+        for( long i = 1; i <= LMAX; i++) { 
             prob[i] = double(histl[i])/double(numberL);
         }
         
         // calculate L entropy
-        for( i = lmin; i <= LMAX; i++) { 
+        for( long i = lmin; i <= LMAX; i++) { 
             if(prob[i] > 0) ENT -= prob[i] * log(prob[i]);
         }
         
         // calculate probability
-        for( i = 1; i <= VMAX; i++) { 
+        for( long i = 1; i <= VMAX; i++) { 
             prob[i] = double(histv[i])/double(numberV);
         }
         
         // calculate V entropy
-        for( i = vmin; i <= VMAX; i++) { 
+        for( long i = vmin; i <= VMAX; i++) { 
             if(prob[i] > 0) VENT -= prob[i] * log(prob[i]);
         }
         
@@ -704,7 +822,7 @@ int main(int argc, char *argv[]) {
             if( ! fid ) { 
                 std::cerr << "ERROR: could not open " << histFilenameL << std::endl;
             } else {
-                for( i = 1; i <= N-tw; i++) { 
+                for( long i = 1; i <= N-tw; i++) { 
                     fid << i << ' ' << histl[i] << '\n';
                 }
             }
@@ -717,7 +835,7 @@ int main(int argc, char *argv[]) {
             if( ! fid ) { 
                 std::cerr << "ERROR: could not open " << histFilenameV << std::endl;
             } else {
-                for( i = 1; i <= N; i++) { 
+                for( long i = 1; i <= N; i++) { 
                     fid << i << ' ' << histv[i] << '\n';
                 }
                 fid.close();
