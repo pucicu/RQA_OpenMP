@@ -569,10 +569,10 @@ int main(int argc, char *argv[]) {
     #pragma omp parallel if(N*m > 2000) 
     {
        #ifdef __VERBOSE__
-        #ifdef _OPENMP
-        if(omp_get_thread_num() == 0)
-           std::cout <<  "                 Calculation is using \033[1m" << omp_get_num_threads() << "\033[0m processes." << std::endl;
-        #endif
+         #ifdef _OPENMP
+         if(omp_get_thread_num() == 0)
+            std::cout <<  "                 Calculation is using \033[1m" << omp_get_num_threads() << "\033[0m processes." << std::endl;
+         #endif
        #endif
 
 
