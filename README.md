@@ -20,7 +20,7 @@ Files
 -----
 
 - `rqa_omp.cpp`: C++ code for efficient, multithreaded RQA calculation
-- `lorenz.dat`: example data file representing the three coordinates of
+- `roessler.dat`: example data file representing the three coordinates of
 the Lorenz system
 
 Compilation
