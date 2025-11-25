@@ -34,14 +34,14 @@ norm normType = EUCLIDEAN;
 rptype rpType = RP;
 
 /***********************************************************************************
- *  distance_euclidean()  -  computes the Euclidean distance between 
+ *  distance_euclidean()  -  computes the squared Euclidean distance between 
  *                 phase space vectors X and Y which will be
  *                 reconstructed from a time-series by the
  *                 time delay method
  * 
  *         input:  pointer to the data vector U and pointer to 
- *                 the data vector V
- *         output: the Euclidean distance between the reconstructed
+ *                 the data vector V, squared threshold e2
+ *         output: squared Euclidean distance between the reconstructed
  *                 vectors X and Y.
  */
 
@@ -52,7 +52,7 @@ FORCE_INLINE float distance_euclidean(
     long m, 
     long t, 
     long cols,
-    float e,
+    float e2,
     long N
 ) {
     float d=0;
@@ -62,12 +62,11 @@ FORCE_INLINE float distance_euclidean(
     for ( k = 0; k < m; k++) {
         long idx_x = cols * (i + k * t);
         long idx_y = cols * (j + k * t);
-        for ( k2 = 0; k2 < cols && d < e; k2++) {
+        for ( k2 = 0; k2 < cols && d < e2; k2++) {
             float diff = data[idx_x + k2] - data[idx_y + k2];
             d += diff * diff;
         }
     }
-    d = sqrtf(d);
 
     return d;
 }
@@ -583,13 +582,15 @@ int main(int argc, char *argv[]) {
        long local_cnt = 0;
        long line;
        long oldDistance;
+       float e2 = e*e; // squared threshold for Euclidean distance
 
        // select distance funvtion
        typedef float (*DistFunc)(const float*, long, long, long, long, long, float, long);
        DistFunc distfunc = nullptr;
+       float used_e = e;   // default
 
        switch(normType) {
-           case EUCLIDEAN: distfunc = distance_euclidean; break;
+           case EUCLIDEAN: distfunc = distance_euclidean; used_e = e2; break;
            case MAX:       distfunc = distance_maximum; break;
            case MIN:       distfunc = distance_minimum; break;
            case OP:        distfunc = distance_op; break;
@@ -611,7 +612,7 @@ int main(int argc, char *argv[]) {
 
                     // calculate distance
                     float distance;
-                    distance = distfunc(data.data(), i+j, j, m, t, cols, e, N);
+                    distance = distfunc(data.data(), i+j, j, m, t, cols, used_e, N);
                     distance2 = distance;
 
                     // apply threshold
@@ -641,7 +642,7 @@ int main(int argc, char *argv[]) {
                 
                 // calculate distance
                 float distance;
-                distance = distfunc(data.data(), i, j, m, t, cols, e, N);
+                distance = distfunc(data.data(), i, j, m, t, cols, used_e, N);
         
                 // apply threshold
                 if (distance <= e) distance = 1.; else distance = 0.;
