@@ -1,0 +1,38 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: RQA for very long data series RQA_openMP
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Norbert
+    family-names: Marwan
+    email: marwan@pik-potsdam.de
+    affiliation: Potsdam Institute for Climate Impact Research (PIK)
+    orcid: 'https://orcid.org/0000-0003-1437-7039'
+identifiers:
+  - type: url
+    value: 'https://github.com/pucicu/RQA_OpenMP'
+    description: Github-Page
+  - type: swh
+    value: 'swh:1:dir:8515aaf8e219e2d2ef11e59e5e5ee9cf04956342'
+  - type: doi
+    value: 10.5281/zenodo.16786351
+    description: Zenodo
+repository-code: 'https://github.com/pucicu/RQA_OpenMP'
+abstract: >
+  Programme to calculate the main measures of the recurrence
+  quantification analysis (RQA). The calculation is
+  performed in an efficient way directly on the time series,
+  without preceeding calculation of the recurrence plot and
+  using multithreading (based on openMP).
+keywords:
+  - software
+  - recurrence quantification analysis
+license: GPL-3.0+
+commit: c056e21
+version: '1.4'
+date-released: '2025-11-21'

@@ -1,8 +1,10 @@
-RQA for very long data series
-=============================
+# RQA for very long data series RQA_openMP
 
-General
--------
+[![SWH](https://archive.softwareheritage.org/badge/origin/https://github.com/pucicu/RQA_OpenMP/)](https://archive.softwareheritage.org/browse/origin/?origin_url=https://github.com/pucicu/RQA_OpenMP)
+![file size](https://img.shields.io/github/repo-size/pucicu/RQA_OpenMP)
+![GitHub Release](https://img.shields.io/github/v/release/pucicu/RQA_OpenMP)
+
+## General
 
 Programme to calculate the main measures of the recurrence quantification
 analysis (RQA). The calculation is performed in an efficient way directly
@@ -16,21 +18,18 @@ and additionally time delay embedding can be applied.
 Available recurrence definitions: Euclidean, maximum, and minimum norm, 
 as well as order patterns.
 
-Files
------
+## Files
 
 - `rqa_omp.cpp`: C++ code for efficient, multithreaded RQA calculation
 - `roessler.dat`: example data file representing the three coordinates of
 the Lorenz system
 
-Compilation
------------
+## Compilation
 
 - Compile without multithread support:  `g++ -O3 -o rqa_omp rqa_omp_n.cpp`
 - Compile for multithread support:  `g++ -O3 -fopenmp -o rqa_omp rqa_omp_n.cpp`
 
-Usage
------
+## Usage
 
 `rqa [options]`
 
@@ -54,7 +53,7 @@ __Examples:__
 
 1. Calculate RQA of 3-columns Lorenz using threshold 10 and Euclidean norm:
 ```
-./rqa_omp -i lorenz.dat -e 10 -n EUCLIDEAN
+./rqa_omp -i roessler.dat -e 10 -n EUCLIDEAN
 ```
 
 2. Calculate RQA of a sine signal using order patterns with 3 dimensions
@@ -63,8 +62,7 @@ and delay 10, and store results in file rqa_results.dat
 ./rqa_omp -i sin.dat -m 3 -t 10 -n OP -o rqa_results.dat
 ```
 
-RQA Measures
-------------
+## RQA Measures
 
 - RR
 - DET
@@ -79,13 +77,11 @@ RQA Measures
 - V_max
 - V_entr (only available in stdout, not in results file)
 
-Input file
-----------
+## Input file
 
 Use a simple ASCII file, structured as single-column or multi-column data. Each row represents one time point; if multiple columns are present, they correspond to different variables measured at the same time.
 
-Output file
------------
+## Output file
 
 Results can be exported as RQA measures (option `-o`) and as histogrammes of
 the diagonal and vertical line length distributions (options `-p` and `-q`).
@@ -102,8 +98,7 @@ measures:
 8. V_max
 
 
-Copyright
----------
+## Copyright
 
 Norbert Marwan\
 Potsdam Institute for Climate Impact Research\
