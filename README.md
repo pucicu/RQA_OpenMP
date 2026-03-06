@@ -29,6 +29,8 @@ the Lorenz system
 - Compile without multithread support:  `g++ -O3 -o rqa_omp rqa_omp_n.cpp`
 - Compile for multithread support:  `g++ -O3 -fopenmp -o rqa_omp rqa_omp_n.cpp`
 
+(compiler and flags may differ depending on the used system)
+
 ## Usage
 
 `rqa [options]`

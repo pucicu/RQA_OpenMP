@@ -3,7 +3,7 @@
 /* Norbert Marwan                                                        */
 /* Potsdam Institute for Climate Impact Research                         */
 /* Original version: 4/2009                                              */
-/* Updated version: 11/2025                                              */
+/* Updated version: 3/2026                                             */
 /* License: GPLv3                                                        */
 /*************************************************************************/
 
@@ -62,7 +62,7 @@ FORCE_INLINE float distance_euclidean(
     for ( k = 0; k < m; k++) {
         long idx_x = cols * (i + k * t);
         long idx_y = cols * (j + k * t);
-        for ( k2 = 0; k2 < cols && d < e2; k2++) {
+        for ( k2 = 0; k2 < cols && d <= e2; k2++) {
             float diff = data[idx_x + k2] - data[idx_y + k2];
             d += diff * diff;
         }
@@ -273,7 +273,7 @@ void usage(void)
 {
 
 
-  std::string version("$Revision: 1.1 $($Date: 2009/04/16 13:19:46 $)");
+  std::string version("Release: 1.414 $($Date: 2026-03-06 $)");
   
   int pos = 0;
   // remove "$"
@@ -281,12 +281,65 @@ void usage(void)
       pos = version.find("$");
       if( pos >=0 && pos < version.length()) version.erase(pos, 1);
   }
-  version.erase(0, 10); // remove "Revision:"
+  version.erase(0, 9); // remove "Revision:"
   pos = version.find("Date");
   version.erase(pos, 6); // remove "Date:"
   pos = version.find(" )");
   version.erase(pos, 1); // remove space before ")"
 
+
+    std::cerr << "Commandline rqa multithreaded, version " << version << "\n"
+              << R"(
+ Calculates RQA measures from a given file.
+ (c) Norbert Marwan, Potsdam Institute for Climate Impact Research (PIK)
+
+usage:
+ rqa options
+
+options:
+    -i data filename (input)
+    -o filename RQA measures (output)
+    -p filename histogramme diagonal line lengths (output)
+    -q filename histogramme vertical line lengths (output)
+    -n distance norm (EUCLIDEAN, MAX, MIN, OP), default=EUCLIDEAN
+    -m embedding dimension, default=1
+    -t embedding delay, default=1
+    -e threshold, default=1
+    -l l_min, default=2
+    -v v_min, default=2
+    -w Theiler window, default=1
+    -s silent (no messages displayed)
+    -h print this help text
+
+commandline output:
+    RR      - recurrence rate (fraction of recurrence points in recurrence plot)
+    DET     - determinism (fraction of recurrence points forming diagonal lines)
+    DET/RR  - normalised determinism
+    L_max   - maximal diagonal line length
+    L_mean  - average diagonal line length
+    L_entr  - entropy of diagonal line length distribution
+    DIV     - divergence 1/L_max
+    LAM     - laminarity (fraction of recurrence points forming vertical lines)
+    LAM/DET - normalised laminarity
+    V_max   - maximal vertical line length
+    TT      - trapping time (average vertical line length)
+    V_entr  - entropy of diagonal vertical length distribution
+
+file output:
+  (columns are separated by a tab delimiter)
+    column  - RQA measure 
+         1  - RR
+         2  - DET
+         3  - L_max
+         4  - L_mean
+         5  - L_entr
+         6  - LAM
+         7  - TT
+         8  - V_max
+)";
+
+
+/*
   std::cerr << "Commandline rqa multithreaded, version ";
   std::cerr << version << "\n";
   std::cerr << "  Calculates RR, DET and LMAX from a given file." << "\n";
@@ -306,6 +359,7 @@ void usage(void)
   std::cerr << "    -w <number>   Theiler window, default=1\n";
   std::cerr << "    -s            silent (no messages displayed)\n";
   std::cerr << "    -h            print this help text\n\n";
+  */
 }
 
 
@@ -584,7 +638,7 @@ int main(int argc, char *argv[]) {
        long oldDistance;
        float e2 = e*e; // squared threshold for Euclidean distance
 
-       // select distance funvtion
+       // select distance function
        typedef float (*DistFunc)(const float*, long, long, long, long, long, float, long);
        DistFunc distfunc = nullptr;
        float used_e = e;   // default
@@ -616,7 +670,7 @@ int main(int argc, char *argv[]) {
                     distance2 = distance;
 
                     // apply threshold
-                    if (distance <= e) {
+                    if (distance <= used_e) {
                         distance = 1.; 
                         local_RR++; // count all recurrences
                     } else { 
@@ -645,7 +699,7 @@ int main(int argc, char *argv[]) {
                 distance = distfunc(data.data(), i, j, m, t, cols, used_e, N);
         
                 // apply threshold
-                if (distance <= e) distance = 1.; else distance = 0.;
+                if (distance <= used_e) distance = 1.; else distance = 0.;
 
                 if(oldDistance) line++; // count vertical length of vertical lines
                 else {
